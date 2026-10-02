@@ -38,10 +38,10 @@ steps:
 
 # Compilar
 - task: DotNetCoreCLI@2
-  displayName: 'Build'
+  displayName: 'Restore'
   inputs:
-    command: 'build'
-    projects: 'TestingPlayground.sln'
+    command: 'restore'
+    projects: '**/*.sln'
     arguments: '--configuration Release --no-restore'
 
 # Ejecutar las 356 pruebas + generar coverage
