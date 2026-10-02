@@ -1,0 +1,69 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'windows-latest'
+
+steps:
+
+# Clonar el repositorio con historial completo para Sonar
+- checkout: self
+  fetchDepth: 0
+
+# El proyecto sigue siendo .NET 6
+- task: UseDotNet@2
+  displayName: 'Install .NET 6 SDK'
+  inputs:
+    packageType: 'sdk'
+    version: '6.0.x'
+
+# Restaurar dependencias
+- task: DotNetCoreCLI@2
+  displayName: 'Restore'
+  inputs:
+    command: 'restore'
+    projects: 'TestingPlayground.sln'
+
+# Preparar análisis de SonarQube Cloud
+- task: SonarCloudPrepare@4
+  displayName: 'Prepare SonarQube Cloud Analysis'
+  inputs:
+    SonarCloud: 'SonarCloud-TestingPlayground'
+    organization: 'sssr33681233'
+    scannerMode: 'dotnet'
+    projectKey: 'SSSR33681233_pruebas-unitarias'
+    projectName: 'TestingPlayground'
+    extraProperties: |
+      sonar.cs.vstest.reportsPaths=$(Build.SourcesDirectory)/TestResults/**/*.trx
+
+# Compilar
+- task: DotNetCoreCLI@2
+  displayName: 'Build'
+  inputs:
+    command: 'build'
+    projects: 'TestingPlayground.sln'
+    arguments: '--configuration Release --no-restore'
+
+# Ejecutar las 356 pruebas + generar coverage
+- task: DotNetCoreCLI@2
+  displayName: 'Run Tests with Coverage'
+  inputs:
+    command: 'test'
+    projects: 'tests/**/*.csproj'
+    arguments: >
+      --configuration Release
+      --no-build
+      --logger "trx"
+      --results-directory "$(Build.SourcesDirectory)/TestResults"
+      --collect "Code Coverage"
+    publishTestResults: true
+
+# Enviar análisis a SonarQube Cloud
+- task: SonarCloudAnalyze@4
+  displayName: 'Run SonarQube Cloud Analysis'
+
+# Mostrar Quality Gate en Azure DevOps
+- task: SonarCloudPublish@4
+  displayName: 'Publish Quality Gate'
+  inputs:
+    pollingTimeoutSec: '300'
